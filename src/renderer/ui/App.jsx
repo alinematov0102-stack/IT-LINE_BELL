@@ -1,7 +1,60 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { AlarmClock, Bell, CalendarClock, Clock3, Headphones, History, LayoutDashboard, Moon, Plus, Power, Settings, Sun, Trash2, Upload, Volume2, X, Pencil, Save } from "lucide-react";
 
-const api = window.smartBell;
+// Electron API mavjud bo'lmasa, Vercel/oddiy brauzer uchun yengil web rejimidan foydalanamiz.
+const webStore = {
+  read(key, fallback) { try { const value = localStorage.getItem(`smartBell:${key}`); return value ? JSON.parse(value) : fallback; } catch { return fallback; } },
+  write(key, value) { localStorage.setItem(`smartBell:${key}`, JSON.stringify(value)); }
+};
+let webAudioPlayer = null;
+const webApi = {
+  async listSchedules() { return webStore.read("schedules", []); },
+  async listAudio() { return webStore.read("audio", []); },
+  async listHistory() { return webStore.read("history", []); },
+  async getSettings() { return webStore.read("settings", { auto_enabled: "true" }); },
+  async saveSchedule(item) {
+    const rows = webStore.read("schedules", []);
+    const row = { ...item, id: item.id ?? Date.now(), days: JSON.stringify(item.days || [1,2,3,4,5,6]), enabled: item.enabled !== false };
+    const index = rows.findIndex(x => x.id === row.id);
+    if (index >= 0) rows[index] = row; else rows.push(row);
+    webStore.write("schedules", rows);
+    return row;
+  },
+  async deleteSchedule(id) { webStore.write("schedules", webStore.read("schedules", []).filter(x => x.id !== id)); },
+  async toggleSchedule({ id, enabled }) { webStore.write("schedules", webStore.read("schedules", []).map(x => x.id === id ? { ...x, enabled } : x)); },
+  async renameAudio({ id, name }) { webStore.write("audio", webStore.read("audio", []).map(x => x.id === id ? { ...x, name } : x)); },
+  async deleteAudio(id) { webStore.write("audio", webStore.read("audio", []).filter(x => x.id !== id)); },
+  async importAudio() {
+    return new Promise((resolve, reject) => {
+      const picker = document.createElement("input"); picker.type = "file"; picker.accept = "audio/*";
+      picker.onchange = async () => {
+        const file = picker.files?.[0]; if (!file) return resolve(null);
+        try {
+          const data = await new Promise((ok, bad) => { const reader = new FileReader(); reader.onload = () => ok(reader.result); reader.onerror = bad; reader.readAsDataURL(file); });
+          const rows = webStore.read("audio", []); const item = { id: Date.now(), name: file.name.replace(/\.[^.]+$/, ""), data };
+          rows.push(item); webStore.write("audio", rows); resolve(item);
+        } catch (error) { reject(error); }
+      };
+      picker.oncancel = () => resolve(null); picker.click();
+    });
+  },
+  async playAudio({ id }) {
+    const item = webStore.read("audio", []).find(x => x.id === id);
+    if (!item?.data) throw new Error("Bu audio brauzer kutubxonasida topilmadi.");
+    if (webAudioPlayer) webAudioPlayer.pause();
+    webAudioPlayer = new Audio(item.data); await webAudioPlayer.play();
+  },
+  async stopAudio() { if (webAudioPlayer) { webAudioPlayer.pause(); webAudioPlayer.currentTime = 0; } },
+  async setSetting({ key, value }) { const settings = webStore.read("settings", { auto_enabled: "true" }); settings[key] = value; webStore.write("settings", settings); },
+  async createBackup() {
+    const data = { schedules: webStore.read("schedules", []), audio: webStore.read("audio", []), history: webStore.read("history", []), settings: webStore.read("settings", { auto_enabled: "true" }), createdAt: new Date().toISOString() };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+    const a = document.createElement("a"); a.href = url; a.download = `itline-smart-bell-backup-${new Date().toISOString().slice(0,10)}.json`; a.click(); URL.revokeObjectURL(url); return true;
+  },
+  onBellEvent() { return () => {}; },
+  onSystemResume() { return () => {}; }
+};
+const api = typeof window !== "undefined" && window.smartBell ? window.smartBell : webApi;
 const dayNames = ["Yakshanba","Dushanba","Seshanba","Chorshanba","Payshanba","Juma","Shanba"];
 const fmt = (d) => new Intl.DateTimeFormat("uz-UZ",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false,timeZone:"Asia/Tashkent"}).format(d);
 const dateFmt = (d) => new Intl.DateTimeFormat("uz-UZ",{weekday:"long",year:"numeric",month:"long",day:"numeric",timeZone:"Asia/Tashkent"}).format(d);
