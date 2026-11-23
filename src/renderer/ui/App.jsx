@@ -7,8 +7,37 @@ const webStore = {
   write(key, value) { localStorage.setItem(`smartBell:${key}`, JSON.stringify(value)); }
 };
 let webAudioPlayer = null;
+const defaultTimetable = [
+  ["1-dars boshlanishi", "08:30:00"],
+  ["Tanaffus boshlanishi · 20 daqiqa", "09:15:00"],
+  ["2-dars boshlanishi", "09:35:00"],
+  ["Tanaffus boshlanishi · 5 daqiqa", "10:20:00"],
+  ["3-dars boshlanishi", "10:25:00"],
+  ["Tanaffus boshlanishi · 5 daqiqa", "11:10:00"],
+  ["4-dars boshlanishi", "11:15:00"],
+  ["Tanaffus boshlanishi · 45 daqiqa", "12:00:00"],
+  ["5-dars boshlanishi", "12:45:00"],
+  ["Tanaffus boshlanishi · 5 daqiqa", "13:30:00"],
+  ["6-dars boshlanishi", "13:35:00"],
+  ["Tanaffus boshlanishi · 5 daqiqa", "14:20:00"],
+  ["7-dars boshlanishi", "14:25:00"],
+  ["Tanaffus boshlanishi · 5 daqiqa", "15:10:00"],
+  ["8-dars boshlanishi", "15:15:00"],
+  ["Darslar tugadi", "16:00:00"]
+];
 const webApi = {
-  async listSchedules() { return webStore.read("schedules", []); },
+  async listSchedules() {
+    let rows = webStore.read("schedules", []);
+    // Jadval faqat yangi brauzerda birinchi marta ochilganda avtomatik qo‘shiladi.
+    if (rows.length === 0) {
+      rows = defaultTimetable.map(([name, time], index) => ({
+        id: 9000 + index, name, time, audio_id: null,
+        days: JSON.stringify([1, 2, 3, 4, 5, 6]), enabled: true
+      }));
+      webStore.write("schedules", rows);
+    }
+    return rows;
+  },
   async listAudio() { return webStore.read("audio", []); },
   async listHistory() { return webStore.read("history", []); },
   async getSettings() { return webStore.read("settings", { auto_enabled: "true" }); },

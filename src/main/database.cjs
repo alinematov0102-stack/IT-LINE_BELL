@@ -11,7 +11,7 @@ const timetable = [
   ["5-dars boshlanishi","12:45:00",1], ["5-dars tugashi — tanaffus boshlanishi","13:30:00",2],
   ["6-dars boshlanishi","13:35:00",1], ["6-dars tugashi — tanaffus boshlanishi","14:20:00",2],
   ["7-dars boshlanishi","14:25:00",1], ["7-dars tugashi — tanaffus boshlanishi","15:10:00",2],
-  ["8-dars boshlanishi","15:15:00",1], ["8-dars tugashi — tanaffus boshlanishi","16:00:00",2]
+  ["8-dars boshlanishi","15:15:00",1], ["Darslar tugadi","16:00:00",null]
 ];
 
 function initDatabase(userDataPath, resourcesPath, isPackaged) {
@@ -69,8 +69,8 @@ function initDatabase(userDataPath, resourcesPath, isPackaged) {
     const insert = db.prepare("INSERT INTO schedules(name,time,audio_id,days,enabled) VALUES(?,?,?,?,1)");
     const tx = db.transaction(() => {
       for (const [name,time,audioNumber] of timetable) {
-        const audioName = audioNumber === 1 ? "IT-LINE qo‘ng‘iroq 1" : "IT-LINE qo‘ng‘iroq 2";
-        insert.run(name,time,audioIds[audioName] || null,JSON.stringify([1,2,3,4,5,6]));
+        const audioName = audioNumber === 1 ? "IT-LINE qo‘ng‘iroq 1" : audioNumber === 2 ? "IT-LINE qo‘ng‘iroq 2" : null;
+        insert.run(name,time,audioName ? (audioIds[audioName] || null) : null,JSON.stringify([1,2,3,4,5,6]));
       }
     });
     tx();
