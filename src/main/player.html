@@ -1,0 +1,10 @@
+<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0">
+<audio id="player"></audio>
+<script>
+const audio = document.getElementById("player");
+window.playerBridge.onPlay(data => {
+  audio.pause(); audio.src = data.fileUrl; audio.volume = data.volume; audio.currentTime = 0;
+  audio.play().catch(err => console.error("Audio ijro xatosi:", err));
+});
+window.playerBridge.onStop(() => { audio.pause(); audio.currentTime = 0; });
+</script></body></html>
